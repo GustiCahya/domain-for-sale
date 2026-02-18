@@ -53,7 +53,7 @@
 							<div class="bg-faded col-sm-6 text-center col-fixed">
 									<div class="vMiddle">
 										<h1 class="pt-4 h2">
-											<span>Thak you for offer, I will contact as soon as possible. Cheers !!!</span>
+											<span>Thank you for offer, I will contact as soon as possible. Cheers !!!</span>
 										</h1>
 										<div class="row d-md-flex text-center justify-content-center text-primary action-icons">
 											<div class="col-sm-4">
