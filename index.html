@@ -21,12 +21,55 @@
       href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css"
     />
     <link rel="stylesheet" href="css/style.css" />
-    <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+
     <!-- EmailJS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <script>
       emailjs.init("mL_LPxCgXaLzGzPRK");
     </script>
+
+    <style>
+      .field-error {
+        color: #e74c3c;
+        font-size: 12px;
+        margin-top: 4px;
+        display: none;
+      }
+      .form-control.is-invalid {
+        border-color: #e74c3c;
+        box-shadow: 0 0 0 2px rgba(231, 76, 60, 0.15);
+      }
+      .form-control.is-valid {
+        border-color: #2ecc71;
+      }
+
+      /* Toast */
+      #toast {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        padding: 14px 20px;
+        border-radius: 6px;
+        font-size: 14px;
+        z-index: 9999;
+        display: none;
+        max-width: 340px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      }
+      #toast.success { background: #2ecc71; color: #fff; }
+      #toast.error   { background: #e74c3c; color: #fff; }
+
+      /* Submit button loading state */
+      #submit-btn.loading {
+        opacity: 0.7;
+        cursor: not-allowed;
+      }
+
+      /* EmailJS captcha wrapper */
+      #emailjs-captcha {
+        margin-bottom: 12px;
+      }
+    </style>
   </head>
   <body>
     <section class="bg-alt hero p-0">
@@ -41,33 +84,30 @@
               <p class="mt-4">For instantly purchase. Please make an order.</p>
               <div class="pt-5">
                 <label for="name">
-                  <a class="btn text-white bg-green btn-lg" href="#" target="_blank"
-                    >Buy now for $1888</a
-                  >
+                  <a class="btn text-white bg-green btn-lg">Buy now for $1888</a>
                 </label>
               </div>
-              <div
-                class="row d-md-flex text-center justify-content-center text-primary action-icons"
-              >
+              <div class="row d-md-flex text-center justify-content-center text-primary action-icons">
                 <div class="col-sm-4">
                   <p><em class="ion-ios-chatbubble-outline icon-md"></em></p>
                   <p class="lead">
-                    <a href="mailto:propertyfollow.ai@gmail.com"
-                      >propertyfollow.ai@gmail.com</a
-                    >
+                    <a href="mailto:propertyfollow.ai@gmail.com">propertyfollow.ai@gmail.com</a>
                   </p>
                 </div>
               </div>
             </div>
           </div>
+
           <div class="col-sm-6 offset-sm-6">
             <section class="bg-alt">
               <div class="container">
                 <div class="row height-100">
                   <div class="col-sm-10 offset-sm-1 mt-2">
-                    <form id="main-offer-form" method="post">
+                    <form id="main-offer-form" method="post" novalidate>
                       <h2 class="text-primary">Interested in this domain?</h2>
                       <hr />
+
+                      <!-- Full Name -->
                       <div class="form-group">
                         <input
                           type="text"
@@ -76,8 +116,11 @@
                           class="form-control"
                           placeholder="Full name (Required)"
                         />
+                        <div class="field-error" id="name-error">Please enter your full name.</div>
                       </div>
+
                       <div class="row">
+                        <!-- Email -->
                         <div class="col">
                           <div class="form-group">
                             <input
@@ -87,8 +130,10 @@
                               class="form-control"
                               placeholder="Email (Required)"
                             />
+                            <div class="field-error" id="email-error">Please enter a valid email address.</div>
                           </div>
                         </div>
+                        <!-- Phone -->
                         <div class="col">
                           <div class="form-group">
                             <input
@@ -98,9 +143,12 @@
                               class="form-control"
                               placeholder="Phone number (Required)"
                             />
+                            <div class="field-error" id="phone-error">Please enter your phone number.</div>
                           </div>
                         </div>
                       </div>
+
+                      <!-- Offer Price -->
                       <div class="form-group">
                         <input
                           type="number"
@@ -110,7 +158,10 @@
                           min="0"
                           placeholder="Offer price in USD? (Required)"
                         />
+                        <div class="field-error" id="price-error">Please enter your offer price.</div>
                       </div>
+
+                      <!-- Message -->
                       <div class="form-group">
                         <textarea
                           name="comments"
@@ -118,6 +169,12 @@
                           class="form-control"
                           placeholder="Message (optional)"
                         ></textarea>
+                      </div>
+
+                      <!-- EmailJS Captcha -->
+                      <div id="emailjs-captcha" class="form-group">
+                        <div data-emailjs-captcha></div>
+                        <div class="field-error" id="captcha-error">Please complete the captcha verification.</div>
                       </div>
 
                       <button
@@ -136,97 +193,117 @@
         </div>
       </div>
     </section>
+
     <script src="js/jquery.min.js"></script>
-    <script src="js/jquery.validate.min.js"></script>
 
     <!-- Toast notification -->
     <div id="toast"></div>
 
     <script>
+      // ── Toast ──────────────────────────────────────────────
       function showToast(message, type) {
         const toast = document.getElementById("toast");
         toast.textContent = message;
         toast.className = type;
         toast.style.display = "block";
-        setTimeout(() => {
-          toast.style.display = "none";
-        }, 5000);
+        setTimeout(() => { toast.style.display = "none"; }, 5000);
       }
 
+      // ── Field-level error helpers ──────────────────────────
+      function setError(fieldId, errorId, message) {
+        const field = document.getElementById(fieldId);
+        const error = document.getElementById(errorId);
+        field.classList.add("is-invalid");
+        field.classList.remove("is-valid");
+        if (message) error.textContent = message;
+        error.style.display = "block";
+      }
+
+      function clearError(fieldId, errorId) {
+        const field = document.getElementById(fieldId);
+        const error = document.getElementById(errorId);
+        field.classList.remove("is-invalid");
+        field.classList.add("is-valid");
+        error.style.display = "none";
+      }
+
+      // Clear errors live as user types
+      ["name", "email", "phone", "price"].forEach(function(id) {
+        document.getElementById(id).addEventListener("input", function() {
+          clearError(id, id + "-error");
+        });
+      });
+
+      // ── Validation ─────────────────────────────────────────
       function validateForm() {
-        const name = document.getElementById("name").value.trim();
-        const email = document.getElementById("email").value.trim();
-        const phone = document.getElementById("phone").value.trim();
-        const price = document.getElementById("price").value.trim();
+        let valid = true;
         const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-        if (!name) {
-          showToast("Please enter your full name.", "error");
-          return false;
-        }
-        if (!email) {
-          showToast("Please enter your email address.", "error");
-          return false;
-        }
-        if (!emailRe.test(email)) {
-          showToast("Please enter a valid email address.", "error");
-          return false;
-        }
-        if (!phone) {
-          showToast("Please enter your phone number.", "error");
-          return false;
-        }
-        if (!price) {
-          showToast("Please enter your offer price.", "error");
-          return false;
-        }
-        return true;
+        const name = document.getElementById("name").value.trim();
+        if (!name) { setError("name", "name-error", "Please enter your full name."); valid = false; }
+        else clearError("name", "name-error");
+
+        const email = document.getElementById("email").value.trim();
+        if (!email) { setError("email", "email-error", "Please enter your email address."); valid = false; }
+        else if (!emailRe.test(email)) { setError("email", "email-error", "Please enter a valid email address."); valid = false; }
+        else clearError("email", "email-error");
+
+        const phone = document.getElementById("phone").value.trim();
+        if (!phone) { setError("phone", "phone-error", "Please enter your phone number."); valid = false; }
+        else clearError("phone", "phone-error");
+
+        const price = document.getElementById("price").value.trim();
+        if (!price) { setError("price", "price-error", "Please enter your offer price."); valid = false; }
+        else clearError("price", "price-error");
+
+        return valid;
       }
 
-      document
-        .getElementById("main-offer-form")
-        .addEventListener("submit", function (e) {
-          e.preventDefault();
+      // ── Form Submit ────────────────────────────────────────
+      document.getElementById("main-offer-form").addEventListener("submit", function(e) {
+        e.preventDefault();
 
-          if (!validateForm()) return;
+        // Hide captcha error on new attempt
+        document.getElementById("captcha-error").style.display = "none";
 
-          const btn = document.getElementById("submit-btn");
-          btn.classList.add("loading");
-          btn.disabled = true;
+        if (!validateForm()) return;
 
-          const templateParams = {
-            from_name: document.getElementById("name").value.trim(),
-            from_email: document.getElementById("email").value.trim(),
-            phone: document.getElementById("phone").value.trim(),
-            offer_price: document.getElementById("price").value.trim(),
-            message:
-              document.getElementById("comments").value.trim() ||
-              "(no message)",
-            to_email: "propertyfollow.ai@gmail.com",
-          };
+        const btn = document.getElementById("submit-btn");
+        btn.textContent = "Sending...";
+        btn.classList.add("loading");
+        btn.disabled = true;
 
-          // ✅ Replace 'YOUR_SERVICE_ID' and 'YOUR_TEMPLATE_ID' with your actual EmailJS IDs
-          emailjs
-            .send("service_xuzth0o", "template_xeigy8h", templateParams)
-            .then(function () {
-              showToast(
-                "✅ Your offer was sent successfully! We'll be in touch soon.",
-                "success"
-              );
-              document.getElementById("main-offer-form").reset();
-            })
-            .catch(function (error) {
-              console.error("EmailJS error:", error);
-              showToast(
-                "❌ Failed to send. Please try again or email us directly.",
-                "error"
-              );
-            })
-            .finally(function () {
-              btn.classList.remove("loading");
-              btn.disabled = false;
+        const templateParams = {
+          from_name:   document.getElementById("name").value.trim(),
+          from_email:  document.getElementById("email").value.trim(),
+          phone:       document.getElementById("phone").value.trim(),
+          offer_price: document.getElementById("price").value.trim(),
+          message:     document.getElementById("comments").value.trim() || "(no message)",
+          to_email:    "propertyfollow.ai@gmail.com",
+        };
+
+        emailjs.send("service_xuzth0o", "template_xeigy8h", templateParams)
+          .then(function() {
+            showToast("✅ Your offer was sent successfully! We'll be in touch soon.", "success");
+            document.getElementById("main-offer-form").reset();
+            ["name", "email", "phone", "price"].forEach(function(id) {
+              document.getElementById(id).classList.remove("is-valid");
             });
-        });
+          })
+          .catch(function(error) {
+            console.error("EmailJS error:", error);
+            if (error && error.text && error.text.toLowerCase().includes("captcha")) {
+              document.getElementById("captcha-error").style.display = "block";
+            } else {
+              showToast("❌ Failed to send. Please try again or email us directly.", "error");
+            }
+          })
+          .finally(function() {
+            btn.textContent = "Make an offer";
+            btn.classList.remove("loading");
+            btn.disabled = false;
+          });
+      });
     </script>
   </body>
 </html>
